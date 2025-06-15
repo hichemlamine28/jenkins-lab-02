@@ -1,0 +1,34 @@
+- name: Destroy ephemeral lab agent
+  hosts: localhost
+  become: false
+  vars:
+    vm_name: "{{ vm_name_prefix }}"
+  tasks:
+    - name: Arrêter la VM si elle existe
+      command: virsh destroy "{{ vm_name_prefix }}"
+      failed_when: false
+      changed_when: false
+
+    - name: Supprimer la VM si elle existe
+      command: virsh undefine "{{ vm_name_prefix }} --remove-all-storage"
+      failed_when: false
+      changed_when: false
+
+    - name: Supprimer les disques associés
+      file:
+        path: "{{ vm_dir }}/{{ vm_name_prefix }}.qcow2"
+        state: absent
+
+    - name: Supprimer les fichiers cloud-init ISO
+      file:
+        path: "{{ vm_dir }}/{{ vm_name_prefix }}-cidata.iso"
+        state: absent
+
+    - name: Supprimer les fichiers cloud-init user-data/meta-data
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "{{ vm_dir }}/{{ vm_name_prefix }}-user-data"
+        - "{{ vm_dir }}/{{ vm_name_prefix }}-meta-data"
+        - "{{ vm_dir }}/{{ vm_name_prefix }}.xml"

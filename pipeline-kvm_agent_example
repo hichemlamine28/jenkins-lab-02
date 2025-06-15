@@ -1,0 +1,114 @@
+pipeline {
+    agent none
+
+    environment {
+        SSH_USER = "ubuntu"
+        SSH_CREDENTIAL_ID = "jenkins-master-ssh"   // À adapter avec ta credential Jenkins
+        REMOTE_FS = "/home/ubuntu/jenkins"
+    }
+
+    stages {
+        stage('Debug Libvirt Access (KVM)') {
+            agent { label 'kvm' }
+            steps {
+                sh '''
+                export LIBVIRT_DEFAULT_URI=qemu:///system
+                virsh list
+                virsh net-list
+                groups
+                whoami
+                '''
+            }
+        }
+        
+        stage('Provision Agent Éphémère (KVM)') {
+            agent { label 'kvm' }
+            steps {
+                sh '''
+                cd /home/hichem/jenkins-lab-02
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install --quiet --upgrade ansible passlib lxml
+                ansible-galaxy collection install --force community.libvirt
+
+                echo "master" > /tmp/vault_pass.txt
+                export LIBVIRT_DEFAULT_URI=qemu:///system
+
+                ansible-playbook lab_jenkins2.yml \
+                    -i inventory.ini \
+                    -i inventory_local.ini \
+                    --private-key=/var/lib/jenkins/.ssh/id_rsa \
+                    --vault-password-file=/tmp/vault_pass.txt
+
+                rm -f /tmp/vault_pass.txt
+                '''
+            }
+        }
+
+        stage('Créer agent Jenkins dynamique (Master)') {
+            agent { label 'master' }
+            steps {
+                script {
+                    // Lecture du fichier créé sur master lors du playbook
+                    def props = readProperties file: '/tmp/jenkins-agent-info.txt'
+                    def agentName = props['name']
+                    def agentIp = props['ip']
+
+                    echo "Création agent Jenkins : ${agentName} (${agentIp})"
+
+                    def jenkins = Jenkins.instance
+                    def existing = jenkins.getNode(agentName)
+                    if (existing != null) {
+                        echo "Agent existant trouvé, suppression..."
+                        jenkins.removeNode(existing)
+                    }
+
+                    // Création du launcher SSH
+                    def launcher = new hudson.plugins.sshslaves.SSHLauncher(
+                        agentIp,
+                        22,
+                        env.SSH_CREDENTIAL_ID,
+                        "", "", "", "",
+                        60, 5, 15,
+                        new hudson.plugins.sshslaves.verifiers.NonVerifyingKeyVerificationStrategy()
+                    )
+
+                    // Création du node Jenkins
+                    def node = new hudson.slaves.DumbSlave(
+                        agentName,
+                        "Agent VM cloné automatiquement",
+                        env.REMOTE_FS,
+                        "1",
+                        hudson.model.Node.Mode.EXCLUSIVE,
+                        "dynamic",
+                        launcher,
+                        new hudson.slaves.RetentionStrategy.Always(),
+                        []
+                    )
+
+                    jenkins.addNode(node)
+                    jenkins.save()
+
+                    echo "Agent Jenkins '${agentName}' ajouté avec succès"
+                }
+            }
+        }
+
+        stage('Job sur agent cloné') {
+            agent { label 'dynamic' }
+            steps {
+                echo "Exécution sur l’agent cloné"
+                sh 'hostname'
+                sh 'echo "Job exécuté sur l’agent éphémère avec succès !"'
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo "Fin du pipeline. Ici tu peux ajouter nettoyage (suppression agent + VM)."
+            }
+        }
+    }
+}

@@ -1,0 +1,47 @@
+import hudson.plugins.sshslaves.SSHLauncher
+import hudson.plugins.sshslaves.verifiers.NonVerifyingKeyVerificationStrategy
+import hudson.model.Node
+import hudson.slaves.DumbSlave
+import hudson.slaves.RetentionStrategy
+import jenkins.model.Jenkins
+
+def agents = {{ jenkins_agents_groovy }}
+
+agents.each { agent ->
+    String name = agent.name
+    String host = agent.ip
+    int port = agent.get('port', 22)
+    String user = "{{ ssh_user }}"
+    String credentialId = "{{ ssh_credential_id }}"
+    String remoteFS = "/home/${user}/jenkins"
+    int numExecutors = 1
+
+    println("Creating or updating agent: ${name}")
+
+    def launcher = new SSHLauncher(
+        host,
+        port,
+        credentialId,
+        "", "", "", "", 0, 0, 0,
+        new NonVerifyingKeyVerificationStrategy()
+    )
+
+    def node = new DumbSlave(
+        name,
+        "node agent",
+        remoteFS,
+        "${numExecutors}",
+        Node.Mode.NORMAL,
+        "agent",
+        launcher,
+        new RetentionStrategy.Always(),
+        []
+    )
+
+    def existingNode = Jenkins.instance.getNode(name)
+    if (existingNode != null) {
+        Jenkins.instance.removeNode(existingNode)
+    }
+    Jenkins.instance.addNode(node)
+    Jenkins.instance.save()
+}

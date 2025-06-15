@@ -1,0 +1,149 @@
+jenkins_admin_fullname: Hichem Elamine
+
+jenkins_admin_email: hichemlamine@gmail.com
+
+jenkins_workspace: "/home/ubuntu/jenkins"
+
+jenkins_master_executors: "0"
+
+ssh_credential_id: "jenkins-master-ssh"
+
+ssh_user: "ubuntu"
+
+sshd_port: "2222"
+
+jenkins_port: "8080"
+
+jenkins_plugins:
+
+  # Plugins core essentiels (must start by this)
+  - configuration-as-code            # config automatisée Jenkins
+  - credentials                      # gestion des credentials (utilisé partout)
+  - ssh-credentials                  # plugins SSH, essentiels pour agents
+  - ssh-slaves                       # agents SSH (anciennement "slave")
+  - plain-credentials                # Identifiants simples (token, clé…)
+
+  ## 🤖 Agents (Execution Nodes)
+  - ssh-agent                        # Utilise l'agent SSH
+  - swarm                            # Agents Jenkins dynamiques via Swarm
+  - docker-slaves                    # Agents tournant dans Docker
+  - docker-plugin                    # Lancer des agents via conteneurs
+  - vagrant                          # Agents Vagrant (tests locaux)
+  - packer                           # Utiliser des machines créées via Packer
+  - azure-vm-agents                  # Agents dynamiques Azure
+  - kubernetes                       # Agents dynamiques Kubernetes (K8s)
+  - amazon-ecs                       # Agents sur Amazon ECS
+
+  ## ⚙️ Core & Configuration
+  - credentials-binding              # Injecter secrets dans les jobs
+  - script-security                  # Sécurité des scripts (sandbox)
+  - matrix-auth                      # Contrôle d’accès (ACLs)
+  - role-strategy                    # Permissions basées sur les rôles
+  - build-timeout                    # Limite de durée pour builds
+  - jdk-tool                         # Gestion des JDK installés
+  - timestamper                      # Timestamps dans les logs
+  - ansicolor                        # Couleurs ANSI dans logs
+
+  ## 🛠️ SCM & GitOps
+  - git                              # Support Git
+  - github                           # Intégration GitHub
+  - gitlab-plugin                    # Intégration GitLab
+  - scm-api                          # API commune SCM
+  - pipeline-github-lib              # Libs partagées GitHub
+
+  ## 🧱 Pipelines & Jobs
+  - workflow-aggregator              # Pipelines déclaratifs & scriptés
+  - pipeline-stage-view              # Vue graphique des étapes en stages
+  - pipeline-graph-view              # Vue graphique des étapes en graphes
+  - pipeline-utility-steps           # Fonctions utilitaires (JSON, etc.)
+  - job-dsl                          # DSL pour créer dynamiquement des jobs
+  - parameterized-trigger            # Déclenche jobs paramétrés
+  - rebuild                          # Bouton Rebuild dans l’interface
+  - uno-choice                       # Active Choices
+  - extensible-choice-parameter      # Paramètre avec choix simples
+  - validating-string-parameter      # Validating String Parameter
+  - show-build-parameters            # Show Build Parameters
+  - pipeline-as-yaml                 # 🆕 Pipelines Jenkins en YAML:
+  - validating-yaml-parameter        # validating Yaml Parameter
+
+  ## 🖼️ UI & Visualisation
+  - blueocean                        # Interface moderne de Jenkins
+  - blueocean-bitbucket-pipeline     # Blueocean Bitbucket pipeline
+  - build-monitor-plugin             # Monitoring visuel des builds
+  - view-job-filters                 # Filtres personnalisés pour jobs
+  - embeddable-build-status          # Badges d’état (markdown)
+
+  ## 📣 Notifications & ChatOps
+  - slack                            # Intégration Slack
+  - mailer                           # Emails basiques
+  - email-ext                        # Emails HTML personnalisés
+  - matrix-project                   # Projet multi-configuration
+
+  ## 🐳 Docker & Containers
+  - docker-workflow                  # Étapes Docker dans pipelines
+  - docker-commons                   # API partagée Docker
+  - aqua-microscanner                # 🔐 Enables scanning of docker build for OS package vulnerabilities
+  - anchore-container-scanner        # Alternative , Scan Docker
+
+  ## ☸️ Kubernetes & Cloud Native
+  - kubernetes-cli                   # CLI kubectl for Kubernetes
+  - kubernetes-pipeline-devops-steps # Kubernetes Pipeline DevOps Steps
+  - google-kubernetes-engine         # GKE support
+
+
+  ## ☁️ Cloud Providers - AWS / GCP / Azure
+  - aws-credentials                  # Stockage des creds AWS
+  - aws-java-sdk                     # SDK AWS (base)
+  - aws-java-sdk-ec2                 # EC2 support
+  - azure-credentials                # Identifiants Azure
+  - azure-keyvault                   # Récupération secrets Azure
+  - azure-vm-agents                  # Agents dynamiques Azure VM
+  - windows-azure-storage            # Windows Aœzure Storage
+  - amazon-ecs                       # Déploiement sur ECS
+  - scalable-amazon-ecs              # Scalable Amazon ECS
+  - google-oauth-plugin              # Auth Google OAuth
+  - google-storage-plugin            # Google Cloud Storage
+
+  ## 📦 CI/CD, IaC & Déploiement
+  - terraform                        # Support Terraform dans pipelines
+  - ansible                          # Intégration Ansible
+  - nexus-artifact-uploader          # Déploiement artefacts Nexus
+  - config-file-provider             # Injection fichiers config
+  - lockable-resources               # Empêche accès concurrent à une ressource
+  - artifact-manager-s3              # Artefacts sur S3
+
+  ## ✅ Qualité, DevSecOps & Sécurité
+  - sonar                            # Analyse SonarQube
+  - junit                            # Support rapport de test JUnit
+  - xunit                            # Rapports de tests pour d’autres frameworks
+  - warnings-ng                      # Compilation warnings (javac, gcc…)
+  - dependency-check-jenkins-plugin  # Détection CVEs dans deps
+
+  ## 🧪 Tests & Automatisation
+  # - selenium                         # Tests UI avec Selenium
+  - seleniumhtmlreport               # View Selenium HTML Report
+  - groovy-postbuild                 # Exécution de script Groovy post-build
+  - groovy-events-listener-plugin    # 🔁 Executes Groovy Code when an event occurs.
+
+  ## 🗃️ Base de Données
+  - database                         # Connexions SQL génériques
+  - database-postgresql              # Intégration PostgreSQL
+  - database-mysql                   # Intégration MySQL
+
+  ## 📅 Agile & Gestion de Projet
+  - jira                             # Intégration Jira (on-prem)
+  - atlassian-jira-software-cloud    # Intégration Jira Cloud
+  - jira-ext                         # Compléments Jira (liens build/issue)
+  - kanboard                         # Intégration avec Kanboard
+
+  ## 📊 Monitoring & Intégration externe
+  - prometheus                       # Export métriques vers Prometheus
+  - monitoring                       # Monitoring basique Jenkins
+  - metrics                          # Expose des métriques JSON
+
+  ## 🧪 Exporteurs/Observabilité (via intégration externe, pas plugins)
+  # 🔄 Grafana : via Prometheus / JSON API
+  # 📦 Loki / Promtail : Jenkins logs → fichiers → agents
+  # 📈 Kibana (ELK) : Jenkins logs → Filebeat / Logstash
+  # 🔔 Nagios : Jenkins monitoré via check_http, check_api
+  # 📊 VictoriaMetrics : compatible Prometheus → récupère Jenkins metrics

@@ -1,0 +1,13 @@
+import jenkins.model.*
+import jenkins.install.*
+
+// 1️⃣  Marquer le setup wizard comme terminé
+Jenkins.instance.setInstallState(InstallState.INITIAL_SETUP_COMPLETED)
+
+// 2️⃣  Définir l’URL maître (à adapter ou rendre dynamique via Jinja2)
+def location = JenkinsLocationConfiguration.get()
+location.setUrl("{{ jenkins_url | default('http://' + hostvars[inventory_hostname].ansible_host + ':' + jenkins_port|string) }}/")
+location.save()
+
+Jenkins.instance.save()
+println "Setup wizard désactivé et URL Jenkins configurée."

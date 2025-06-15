@@ -1,0 +1,241 @@
+---
+- name: Add Jenkins GPG key
+  ansible.builtin.get_url:
+    url: https://pkg.jenkins.io/debian/jenkins.io-2023.key
+    dest: /etc/apt/keyrings/jenkins-keyring.asc
+    mode: '0644'
+
+- name: Add Jenkins repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian binary/"
+    filename: jenkins
+    state: present
+    update_cache: yes
+
+- name: Install Jenkins (latest version)
+  apt:
+    name: jenkins
+    state: latest
+    update_cache: yes
+
+- name: Ensure Jenkins is started and enabled
+  service:
+    name: jenkins
+    state: started
+    enabled: yes
+
+- name: Wait for Jenkins to be reachable (200 or 403)
+  uri:
+    url: http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }}
+    # url: http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:{{ jenkins_port }}
+    status_code: [200, 403]
+  register: result
+  retries: 10
+  delay: 5
+  until: result.status in [200, 403]
+
+- name: Créer le dossier .ssh pour Jenkins s'il n'existe pas
+  file:
+    path: /var/lib/jenkins/.ssh
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: '0700'
+
+- name: Generate SSH key for Jenkins master if not exists
+  ansible.builtin.openssh_keypair:
+    path: /var/lib/jenkins/.ssh/id_rsa
+    owner: jenkins
+    group: jenkins
+    mode: '0600'
+    force: false
+  # when: not lookup('file', '/var/lib/jenkins/.ssh/id_rsa', errors='ignore')
+
+- name: Fetch public key from master
+  slurp:
+    src: /var/lib/jenkins/.ssh/id_rsa.pub
+  register: jenkins_pub
+
+- name: Add Jenkins master public key to agent authorized_keys
+  delegate_to: "{{ item }}"
+  ansible.builtin.authorized_key:
+    user: ubuntu
+    key: "{{ jenkins_pub['content'] | b64decode }}"
+  with_items: "{{ groups['agents'] }}"
+
+
+- name: Générer une clé SSH pour l'utilisateur {{ ssh_user }} (si absente)
+  ansible.builtin.openssh_keypair:
+    path: /home/{{ ssh_user }}/.ssh/id_rsa
+    owner: "{{ ssh_user }}"
+    group: "{{ ssh_user }}"
+    mode: '0600'
+    type: rsa
+    size: 4096
+    force: false
+
+- name: Copier la clé publique SSH vers /tmp sur  master
+  copy:
+    src: "/home/{{ ssh_user }}/.ssh/id_rsa.pub"
+    dest: "/tmp/id_rsa.pub"
+    owner: jenkins
+    group: jenkins
+    mode: '0600'
+    remote_src: true
+  run_once: true
+
+- name: Créer le dossier init.groovy.d si nécessaire
+  file:
+    path: /var/lib/jenkins/init.groovy.d
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: '0755'
+
+- name: Construire la liste des agents Jenkins
+  set_fact:
+    jenkins_agents_dynamic: "{{ jenkins_agents_dynamic | default([]) + [ { 'name': item, 'ip': hostvars[item]['ansible_host'] | default(hostvars[item]['ansible_default_ipv4']['address']) }] }}"
+  loop: "{{ groups['agents'] }}"
+  failed_when: false
+  changed_when: false
+
+- name: Construire la liste des agents Jenkins (Groovy-compatible)
+  set_fact:
+    jenkins_agents_groovy: |
+      [
+      {% for agent in jenkins_agents_dynamic %}
+        [name: '{{ agent.name }}', ip: '{{ agent.ip }}']{% if not loop.last %},{% endif %}
+      {% endfor %}
+      ]
+  when: jenkins_agents_dynamic is defined
+  failed_when: false
+  changed_when: false
+
+- name: Appliquer tous les templates init.groovy.d
+  template:
+    src: "{{ item.src }}"
+    dest: "/var/lib/jenkins/init.groovy.d/{{ item.dest }}"
+    owner: jenkins
+    group: jenkins
+    mode: '0644'
+  with_items:
+    - { src: 1_install_plugins.groovy.j2, dest: 1_install_plugins.groovy }
+    - { src: 2_login.groovy.j2, dest: 2_login.groovy }
+    - { src: 3_configure.groovy.j2, dest: 3_configure.groovy }
+    - { src: 4_disable_setup.groovy.j2, dest: 4_disable_setup.groovy }
+    - { src: 5_add_jenkins_credential.groovy.j2, dest: 5_add_jenkins_credential.groovy }
+    # - { src: 6_add_jenkins_agents.groovy.j2, dest: 6_add_jenkins_agents.groovy }
+    - { src: 7_ssh_pub_key.groovy.j2, dest: 7_ssh_pub_key.groovy }    
+    - { src: check_script_execution.groovy.j2, dest: check_script_execution.groovy }
+  register: template_results
+  vars:
+    ssh_public_key: "{{ lookup('file', '/home/' + ssh_user + '/.ssh/id_rsa.pub') }}"
+
+- name: Vérifier si au moins un template a changé
+  set_fact:
+    jenkins_templates_changed: "{{ template_results.results | selectattr('changed') | list | length > 0 }}"
+
+- name: Supprimer le fichier témoin  .init_done  si présent (avant Redémarrage de Jenkins)
+  file:
+    path: /var/lib/jenkins/.init_done
+    state: absent
+  when: jenkins_templates_changed
+
+# Notify + handlers KO - timeout : La configuration initiale de jenkins + plugins .. etc prend trop du temps
+- name: Redémarrer Jenkins avec un délai d'attente plus long si au moins un template a changé
+  command: systemctl restart jenkins
+  async: 600         # Jusqu'à 10 minutes
+  poll: 0            # Ne pas attendre la fin (mode fire-and-forget)
+  when: jenkins_templates_changed
+
+- name: Attendre que Jenkins soit de nouveau disponible
+  uri:
+    url: http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }}
+    status_code: [200, 403]
+  register: result
+  retries: 20
+  delay: 5
+  until: result.status in [200, 403]
+
+# Attendre la fin de la config auto de jenkins
+- name: Attendre la fin des scripts Jenkins Config/Setup/Plugins/Credentials/Agents 
+  stat:
+    path: /var/lib/jenkins/.init_done
+  register: init_done
+  retries: 100
+  delay: 20
+  until: init_done.stat.exists
+  when: jenkins_templates_changed
+
+
+# - name: Redémarrer Jenkins (2ème fois après exécution des scripts si au moins un template a été modifié)
+#   systemd:
+#     name: jenkins
+#     state: restarted
+#   when: jenkins_templates_changed
+
+
+
+- name: Télécharger jenkins-cli.jar
+  ansible.builtin.get_url:
+    url: "http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }}/jnlpJars/jenkins-cli.jar"
+    dest: "/home/{{ ssh_user }}/jenkins-cli.jar"
+    mode: '0755'
+    owner: "{{ ssh_user }}"
+    group: "{{ ssh_user }}"
+
+
+
+- name: Ajouter l'alias Jenkins dans .bashrc
+  ansible.builtin.lineinfile:
+    path: "/home/{{ ssh_user }}/.bashrc"
+    regexp: "^alias jenkins="
+    line: "alias jenkins='java -jar ~/jenkins-cli.jar -s http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }} -auth {{ jenkins_admin_user }}:{{ jenkins_admin_password }}'"
+    insertafter: EOF
+    state: present
+    backup: yes
+
+
+- name: Ajouter l'alias Jenkins-cli dans .bashrc
+  ansible.builtin.lineinfile:
+    path: "/home/{{ ssh_user }}/.bashrc"
+    regexp: "^alias jenkins-cli="
+    line: "alias jenkins-cli='java -jar ~/jenkins-cli.jar -s http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }} -auth {{ jenkins_admin_user }}:{{ jenkins_admin_password }}'"
+    insertafter: EOF
+    state: present
+    backup: yes
+
+
+
+
+# - name: Ajouter l'alias Jenkins dans .bashrc
+#   ansible.builtin.lineinfile:
+#     path: "/home/{{ ssh_user }}/.bashrc"
+#     line: "alias jenkins-cli='java -jar ~/jenkins-cli.jar -s http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }} -auth {{ jenkins_admin_user }}:{{ jenkins_admin_password }}'"
+#     create: yes
+#     state: present
+#     insertafter: EOF
+#     owner: "{{ ssh_user }}"
+#     group: "{{ ssh_user }}"
+#     mode: '0644'    
+
+# - name: Ajouter l'alias Jenkins dans .bashrc
+#   ansible.builtin.lineinfile:
+#     path: "/home/{{ ssh_user }}/.bashrc"
+#     line: "alias jenkins='java -jar ~/jenkins-cli.jar -s http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }} -auth {{ jenkins_admin_user }}:{{ jenkins_admin_password }}'"
+#     create: yes
+#     state: present
+#     insertafter: EOF
+#     owner: "{{ ssh_user }}"
+#     group: "{{ ssh_user }}"
+#     mode: '0644'
+
+- name: S'assurer que .bashrc est bien sourcé dans .bash_profile
+  ansible.builtin.lineinfile:
+    path: "/home/{{ ssh_user }}/.bash_profile"
+    line: "[ -f ~/.bashrc ] && source ~/.bashrc"
+    create: yes
+    state: present
+    owner: "{{ ssh_user }}"
+    group: "{{ ssh_user }}"
+    mode: '0644'

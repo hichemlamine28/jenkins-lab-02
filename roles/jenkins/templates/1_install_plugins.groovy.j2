@@ -1,0 +1,25 @@
+import jenkins.model.*
+import hudson.model.UpdateCenter
+
+def instance = Jenkins.getInstance()
+
+def pluginNames = [
+{% for plugin in jenkins_plugins %}
+  '{{ plugin }}',
+{% endfor %}
+]
+
+def updateCenter = instance.getUpdateCenter()
+
+pluginNames.each { pluginName ->
+    def plugin = instance.getPluginManager().getPlugin(pluginName)
+    if (plugin == null) {
+        println("Installing plugin: ${pluginName}")
+        def pluginDeployment = updateCenter.getPlugin(pluginName).deploy()
+        pluginDeployment.get()
+    } else {
+        println("Plugin ${pluginName} already installed.")
+    }
+}
+
+instance.save()

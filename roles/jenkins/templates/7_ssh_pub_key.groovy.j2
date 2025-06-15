@@ -1,0 +1,48 @@
+import hudson.model.User
+import org.jenkinsci.main.modules.cli.auth.ssh.UserPropertyImpl
+import java.util.Timer
+import java.util.TimerTask
+
+println "[Add SSH Key] Script lancé..."
+
+new Timer().schedule(new TimerTask() {
+    @Override
+    void run() {
+        println "[Add SSH Key] Timer exécuté..."
+
+        def jenkinsUser = "{{ jenkins_admin_user }}"
+        def pubKeyPath = "/tmp/id_rsa.pub"
+
+        def pubKeyFile = new File(pubKeyPath)
+        if (!pubKeyFile.exists()) {
+            println "Fichier de clé publique introuvable : ${pubKeyPath}"
+            return
+        }
+
+        def pubKey = pubKeyFile.text.trim()
+        println "Clé publique lue : '${pubKey}'"
+
+        def user = User.get(jenkinsUser, false)
+        if (user == null) {
+            println "Utilisateur Jenkins '${jenkinsUser}' introuvable"
+            return
+        }
+
+        def sshProp = user.getProperty(UserPropertyImpl.class)
+        if (sshProp == null) {
+            sshProp = new UserPropertyImpl("")
+            user.addProperty(sshProp)
+        }
+
+        def currentKeys = sshProp.authorizedKeys
+        def newKeys = pubKey  // Remplace toujours, proprement
+
+        if (currentKeys != pubKey) {
+            sshProp.authorizedKeys = newKeys
+            user.save()
+            println "Clé SSH mise à jour pour l'utilisateur '${jenkinsUser}'"
+        } else {
+            println "Clé SSH déjà à jour pour l'utilisateur '${jenkinsUser}'"
+        }
+    }
+}, 10000)

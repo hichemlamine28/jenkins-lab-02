@@ -1,0 +1,12 @@
+import java.nio.file.*
+import java.text.SimpleDateFormat
+
+def now = new Date()
+def formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+
+def message = "✅ Execution of all init.groovy.d scripts finished successfully at ${formatter.format(now)}\n"
+
+def marker = new File("/var/lib/jenkins/.init_done")
+marker.text = message
+
+println("[Jenkins Init] Marker written: ${message}")

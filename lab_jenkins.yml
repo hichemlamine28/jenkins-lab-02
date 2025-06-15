@@ -1,0 +1,52 @@
+---
+- name: Setup Jenkins Cluster
+  hosts: all
+  become: yes
+  roles:
+    - common
+
+- name: Préparer Jenkins master
+  hosts: master
+  become: true
+  roles:
+    - jenkins
+
+# Lancement de jenkins sur le navigateur chrome ou firefox
+
+- name: Open Jenkins in local browser
+  hosts: localhost
+  become: false
+  gather_facts: no
+  vars:
+    jenkins_ip: "{{ hostvars['labvm1'].ansible_host | default(hostvars['labvm1'].inventory_hostname) }}"
+  tasks:
+    - name: Check if Google Chrome is installed
+      stat:
+        path: /usr/bin/google-chrome
+      register: chrome_installed
+
+    - name: Check if Firefox is installed
+      stat:
+        path: /usr/bin/firefox
+      register: firefox_installed
+
+    - name: Open Jenkins in Chrome
+      command: google-chrome http://{{ jenkins_ip }}:{{ jenkins_port }}
+      when: chrome_installed.stat.exists
+      ignore_errors: yes
+
+    - name: Open Jenkins in Firefox (if Chrome not installed)
+      command: firefox http://{{ jenkins_ip }}:{{ jenkins_port }}
+      when:
+        - not chrome_installed.stat.exists
+        - firefox_installed.stat.exists
+      ignore_errors: yes
+
+    - name: Show message if no supported browser is found
+      debug:
+        msg: >-
+          Aucun navigateur compatible trouvé. Veuillez installer Google Chrome ou Firefox.
+          Vous pouvez ensuite accéder à Jenkins manuellement ici : http://{{ jenkins_ip }}:{{ jenkins_port }}
+      when:
+        - not chrome_installed.stat.exists
+        - not firefox_installed.stat.exists

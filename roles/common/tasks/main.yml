@@ -1,0 +1,22 @@
+---
+- name: Ensure apt keyrings directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Fix broken apt dependencies
+  ansible.builtin.command: apt --fix-broken install -y
+  become: true
+  changed_when: false
+
+- name: Install common dependencies
+  apt:
+    name:
+      - fontconfig
+      # - openjdk-21-jre
+      - openjdk-21-jre-headless
+      - openjdk-21-jdk-headless
+      - net-tools
+    state: present
+    update_cache: yes

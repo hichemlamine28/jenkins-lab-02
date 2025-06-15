@@ -1,0 +1,38 @@
+pipeline {
+    agent { label 'kvm' }
+
+    stages {
+        stage('Debug Libvirt Access') {
+            steps {
+                sh '''
+                export LIBVIRT_DEFAULT_URI=qemu:///system
+                virsh list
+                virsh net-list
+                groups
+                whoami
+                '''
+            }
+        }
+        
+        stage('Provision Agent Éphémère') {
+            steps {
+                sh '''
+                cd /home/hichem/jenkins-lab-02
+                pwd
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install ansible passlib
+                ansible-galaxy collection install community.libvirt
+                echo " " | sudo -S sudo apt install pkg-config libvirt-dev python3-dev -y
+                pip3 install libvirt-python
+                pip install lxml
+                echo "master" > /tmp/vault_pass.txt
+                export LIBVIRT_DEFAULT_URI=qemu:///system
+                ansible-playbook lab_jenkins2.yml -i inventory.ini -i inventory_local.ini --private-key=/var/lib/jenkins/.ssh/id_rsa --vault-password-file=/tmp/vault_pass.txt
+                rm -f /tmp/vault_pass.txt
+                
+                '''
+            }
+        }
+    }
+}

@@ -1,0 +1,29 @@
+---
+- name: Créer un agent éphémère
+  hosts: localhost
+  gather_facts: no
+  become: false
+  tasks:
+    - name: Appel du rôle de création d'agent éphémère
+      include_role:
+        name: agent_ephemeral_clone
+
+
+    # - name: Copier les infos de l'agent vers le master Jenkins
+    #   copy:
+    #     src: "/tmp/jenkins-agent-info.txt"
+    #     dest: "/tmp/jenkins-agent-info.txt"
+    #     force: true
+    #   delegate_to: labvm1
+
+
+
+# - name: Ajouter agent dans Jenkins
+#   hosts: master
+#   gather_facts: no
+#   become: true
+#   roles:
+#     - jenkins_agent_register
+
+
+

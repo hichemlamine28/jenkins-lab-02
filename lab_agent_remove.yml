@@ -1,0 +1,13 @@
+- name: Destroy ephemeral lab agent
+  hosts: localhost
+  become: false
+  vars:
+    vm_name: "{{ vm_name }}"
+  tasks:
+    - name: Stop VM if running
+      command: "virsh destroy {{ vm_name }}"
+      ignore_errors: true
+
+    - name: Undefine the VM
+      command: "virsh undefine {{ vm_name }} --remove-all-storage"
+      ignore_errors: false

@@ -1,0 +1,76 @@
+import jenkins.model.*
+import java.util.Timer
+import java.util.TimerTask
+import java.util.logging.Logger
+
+def logger = Logger.getLogger("")
+
+logger.info("[Jenkins Init] Script de configuration différée démarré")
+
+// Attendre 10 secondes après le démarrage Jenkins avant d'exécuter la config
+new Timer().schedule(new TimerTask() {
+    @Override
+    void run() {
+        try {
+            def jlc = JenkinsLocationConfiguration.get()
+            def jenkinsUrl = "http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }}"
+            def adminEmail = "{{ jenkins_admin_email }}"
+
+            boolean changed = false
+
+            if (jlc.getUrl() != jenkinsUrl) {
+                jlc.setUrl(jenkinsUrl)
+                logger.info("[Jenkins Init] URL Jenkins mise à jour : ${jenkinsUrl}")
+                changed = true
+            }
+
+            if (jlc.getAdminAddress() != adminEmail) {
+                jlc.setAdminAddress(adminEmail)
+                logger.info("[Jenkins Init] Adresse mail admin mise à jour : ${adminEmail}")
+                changed = true
+            }
+
+            if (changed) {
+                jlc.save()
+                logger.info("[Jenkins Init] Configuration sauvegardée.")
+            }
+
+            // Désactiver le moniteur de configuration d'emplacement
+            Jenkins.instance.administrativeMonitors.each { monitor ->
+                if (monitor.id == "jenkins.location.ConfigureSystem") {
+                    monitor.disable(true)
+                    logger.info("[Jenkins Init] Moniteur '${monitor.id}' désactivé.")
+                }
+            }
+
+            // Mettre le nombre d'exécuteurs du contrôleur à 0
+            def instance = Jenkins.get()
+            if (instance.numExecutors != {{ jenkins_master_executors }}) {
+                instance.setNumExecutors({{ jenkins_master_executors }})
+                logger.info("[Jenkins Init] Nombre d'exécuteurs du contrôleur mis à 0.")
+            }
+
+            // === Activation SSHD et configuration du port ===
+            def sshd = org.jenkinsci.main.modules.sshd.SSHD.get()
+            if (sshd != null) {
+                if (sshd.getPort() != {{ sshd_port }}) {
+                    sshd.setPort({{ sshd_port }})
+                    logger.info("[Jenkins Init] Port SSHD défini à {{ sshd_port }}.")
+                }
+                if (!sshd.isEnable()) {
+                    sshd.setEnable(true)
+                    logger.info("[Jenkins Init] SSHD activé.")
+                }
+                sshd.save()
+            } else {
+                logger.warning("[Jenkins Init] Plugin SSHD introuvable.")
+            }
+
+            Jenkins.instance.save()
+            logger.info("[Jenkins Init] Configuration terminée.")
+        } catch (Exception e) {
+            logger.severe("[Jenkins Init] Erreur lors de la configuration: " + e.getMessage())
+            e.printStackTrace()
+        }
+    }
+}, 10000)
