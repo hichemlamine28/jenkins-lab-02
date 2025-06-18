@@ -2,9 +2,9 @@ pipeline {
     agent none
 
     environment {
-        SSH_USER = "ubuntu"
+        SSH_USER = "hichem"
         SSH_CREDENTIAL_ID = "jenkins-master-ssh"   // À adapter avec ta credential Jenkins
-        REMOTE_FS = "/home/ubuntu/jenkins"
+        REMOTE_FS = "/home/hichem/jenkins"
     }
 
     stages {

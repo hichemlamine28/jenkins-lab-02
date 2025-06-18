@@ -1,15 +1,49 @@
 ---
-- name: Setup Jenkins Cluster
+# Installer et Configurer Jenkins sur la vm jenkins master
+- name: Pré-install/config pour Jenkins Cluster
   hosts: all
   become: yes
   roles:
     - common
 
-- name: Préparer Jenkins master
+- name: Installer et configurer Jenkins sur la vm master
   hosts: master
   become: true
   roles:
     - jenkins
+
+
+# Activer Nested Virt sur la vm Jenkins master
+- name: Activer  la visrtualisation imbriqué" (Nested Virt)
+  hosts: master
+  become: true
+  roles:
+    - nested_virt
+
+
+# Cloner le depot git sur la vm jenkins master
+
+- name: Clone Jenkins lab repo on master node
+  hosts: master
+  become: true
+  vars:
+    ssh_user: ubuntu
+  tasks:
+    - name: Ensure git is installed
+      apt:
+        name: git
+        state: present
+        update_cache: yes
+
+    - name: Clone Jenkins lab repository
+      git:
+        repo: https://github.com/hichemlamine28/jenkins-lab-02.git
+        dest: /home/{{ ssh_user }}/jenkins-lab-02
+        version: main
+        force: yes
+        update: yes
+      become_user: "{{ ssh_user }}"
+
 
 # Lancement de jenkins sur le navigateur chrome ou firefox
 

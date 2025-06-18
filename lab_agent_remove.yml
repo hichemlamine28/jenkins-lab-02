@@ -2,12 +2,38 @@
   hosts: localhost
   become: false
   vars:
-    vm_name: "{{ vm_name }}"
+    vm_name: "{{ agent_name }}"
   tasks:
-    - name: Stop VM if running
-      command: "virsh destroy {{ vm_name }}"
-      ignore_errors: true
+    - name: Arrêter la VM si elle existe
+      command: "virsh destroy {{ agent_name }}"
+      failed_when: false
+      changed_when: false
 
-    - name: Undefine the VM
-      command: "virsh undefine {{ vm_name }} --remove-all-storage"
-      ignore_errors: false
+    - name: Supprimer la VM si elle existe
+      command: "virsh undefine {{ agent_name }} --remove-all-storage"
+      failed_when: false
+      changed_when: false
+
+    - name: Supprimer les disques associés
+      file:
+        path: "{{ vm_dir }}/{{ agent_name }}.qcow2"
+        state: absent
+
+    - name: Supprimer les fichiers cloud-init ISO
+      file:
+        path: "{{ vm_dir }}/{{ agent_name }}-cidata.iso"
+        state: absent
+
+    - name: Supprimer les fichiers cloud-init user-data/meta-data
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "{{ vm_dir }}/{{ agent_name }}-user-data"
+        - "{{ vm_dir }}/{{ agent_name }}-meta-data"
+        - "{{ vm_dir }}/{{ agent_name }}.xml"
+
+    - name: Supprimer le fichier agent-info-{{ agent_name }}.txt
+      file:
+        path: "/tmp/agent-info-{{ agent_name }}.txt"
+        state: absent

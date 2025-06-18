@@ -152,7 +152,7 @@ ssh -p 2222 admin@localhost version
 
 depuis le jenkins master
 
-sudo ssh -i /var/lib/jenkins/.ssh/id_rsa ubuntu@192.168.122.130
+sudo ssh -i /var/lib/jenkins/.ssh/id_rsa hichem@192.168.122.130
 
 
 

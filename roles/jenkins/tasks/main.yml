@@ -51,7 +51,7 @@
     force: false
   # when: not lookup('file', '/var/lib/jenkins/.ssh/id_rsa', errors='ignore')
 
-- name: Fetch public key from master
+- name: Fetch jenkins public key from master
   slurp:
     src: /var/lib/jenkins/.ssh/id_rsa.pub
   register: jenkins_pub
@@ -59,10 +59,9 @@
 - name: Add Jenkins master public key to agent authorized_keys
   delegate_to: "{{ item }}"
   ansible.builtin.authorized_key:
-    user: ubuntu
+    user: "{{ ssh_user }}"
     key: "{{ jenkins_pub['content'] | b64decode }}"
   with_items: "{{ groups['agents'] }}"
-
 
 - name: Générer une clé SSH pour l'utilisateur {{ ssh_user }} (si absente)
   ansible.builtin.openssh_keypair:
@@ -83,6 +82,18 @@
     mode: '0600'
     remote_src: true
   run_once: true
+
+- name: Fetch user public key from master
+  slurp:
+    src: /tmp/id_rsa.pub
+  register: user_pub
+
+- name: Add Jenkins master public key to local {{ ssh_user }} authorized_keys
+  delegate_to: localhost
+  ansible.builtin.authorized_key:
+    user: "{{ ssh_user }}"
+    key: "{{ user_pub['content'] | b64decode }}"
+  become_user: "{{ ssh_user }}"
 
 - name: Créer le dossier init.groovy.d si nécessaire
   file:

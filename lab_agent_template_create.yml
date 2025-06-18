@@ -1,7 +1,0 @@
----
-- name: Préparer VM template pour agents
-  hosts: localhost
-  gather_facts: no
-  become: false
-  roles:
-    - agent_template_setup

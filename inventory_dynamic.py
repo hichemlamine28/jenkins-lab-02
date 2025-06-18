@@ -73,7 +73,7 @@ def main():
 
     # Ajoute les variables globales
     lines.append("[all:vars]")
-    lines.append("ansible_user=ubuntu")
+    lines.append("ansible_user=hichem")
     lines.append("ansible_ssh_private_key_file=~/.ssh/id_rsa")
 
     # Écrit dans le fichier inventory.ini

@@ -2,13 +2,13 @@ jenkins_admin_fullname: Hichem Elamine
 
 jenkins_admin_email: hichemlamine@gmail.com
 
-jenkins_workspace: "/home/ubuntu/jenkins"
+jenkins_workspace: "/home/hichem/jenkins"
 
 jenkins_master_executors: "0"
 
 ssh_credential_id: "jenkins-master-ssh"
 
-ssh_user: "ubuntu"
+ssh_user: "hichem"
 
 sshd_port: "2222"
 

@@ -1,15 +1,14 @@
 jenkins_admin_fullname: Hichem Elamine
 jenkins_admin_email: hichemlamine@gmail.com
-jenkins_workspace: "/home/ubuntu/jenkins"
+jenkins_workspace: "/home/hichem/jenkins"
 jenkins_master_executors: "0"
 ssh_credential_id: "jenkins-master-ssh"
-ssh_user: "ubuntu"
+ssh_user: "hichem"
 sshd_port: "2222"
 jenkins_port: "8080"
 
-# vars for template agent
-vm_name_prefix: "jenkins-agent-template"
-vm_user: "ubuntu"
+# vars for VM agent
+vm_user: "hichem"
 vm_password: "devops"
 vm_disk_size: "20G"
 vm_dir: "{{ lookup('env','HOME') }}/vms"
