@@ -1,0 +1,154 @@
+---
+- name: Mettre à jour le cache apt
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Installer les paquets système essentiels pour la virtualisation imbriquée
+  apt:
+    name:
+      - python3-pip
+      - python3-apt
+      - pkg-config
+      - libvirt-daemon-system
+      - libvirt-clients
+      - libvirt-dev
+      - qemu-kvm
+      - qemu-utils
+      - cloud-image-utils
+      - net-tools
+      - gcc
+      - make
+      - libglib2.0-dev
+      # - libvirt-bin
+      - virtinst
+      - virt-manager
+      - bridge-utils
+    state: present
+    update_cache: true
+
+- name: Ajouter PPA Ansible officiel
+  ansible.builtin.apt_repository:
+    repo: ppa:ansible/ansible
+    state: present
+    update_cache: true
+
+- name: Installer ansible
+  ansible.builtin.apt:
+    name: ansible
+    state: present
+
+# Ensuite installer les autres paquets python via apt (libvirt, passlib, lxml...)
+- name: Installer paquets Python via apt
+  ansible.builtin.apt:
+    name:
+      - python3-passlib
+      - python3-libvirt
+      - python3-lxml
+    state: present
+    update_cache: true
+
+- name: Installer collection Ansible community.libvirt
+  ansible.builtin.command: ansible-galaxy collection install community.libvirt
+  args:
+    creates: ~/.ansible/collections/ansible_collections/community/libvirt
+
+- name: Activer nested virtualization pour KVM Intel (si processeur Intel)
+  copy:
+    dest: /etc/modprobe.d/kvm-nested.conf
+    content: |
+      options kvm_intel nested=1
+  notify: reload kvm modules
+  when: ansible_facts['processor'][0] is search("Intel")
+
+- name: Activer nested virtualization pour KVM AMD (si processeur AMD)
+  copy:
+    dest: /etc/modprobe.d/kvm-nested.conf
+    content: |
+      options kvm_amd nested=1
+  notify: reload kvm modules
+  when: ansible_facts['processor'][0] is search("AMD")
+
+- name: Charger modules KVM avec nested (Intel)
+  shell: modprobe -r kvm_intel && modprobe kvm_intel nested=1
+  when: ansible_facts['processor'][0] is search("Intel")
+
+- name: Charger modules KVM avec nested (AMD)
+  shell: modprobe -r kvm_amd && modprobe kvm_amd nested=1
+  when: ansible_facts['processor'][0] is search("AMD")
+
+- name: Fix droits répertoire home de l'utilisateur SSH à 751
+  file:
+    path: "/home/{{ ssh_user }}"
+    mode: '0751'
+    state: directory
+    owner: "{{ ssh_user }}"
+    group: "{{ ssh_user }}"
+
+- name: Fix droits répertoire VMs à 755
+  file:
+    path: "/home/{{ ssh_user }}/vms"
+    mode: '0755'
+    state: directory
+    owner: "{{ ssh_user }}"
+    group: "{{ ssh_user }}"
+
+- name: Ajouter {{ ssh_user }} au groupe libvirt-qemu
+  user:
+    name: "{{ ssh_user }}"
+    groups: libvirt-qemu
+    append: true
+
+- name: Assurer que libvirtd est démarré et activé
+  systemd:
+    name: libvirtd
+    state: started
+    enabled: true
+
+
+# Créer le réseau jenkins_network pour les vm et agents plus tard
+- name: Copier fichier XML du réseau jenkins_network
+  copy:
+    src: jenkins_network.xml
+    dest: /tmp/jenkins_network.xml
+    mode: '0644'
+
+- name: Arrêter réseau jenkins_network si déjà défini / Destroy
+  command: virsh net-destroy jenkins_network
+  failed_when: false
+  changed_when: false
+
+- name: Supprimer réseau jenkins_network défini / undefine
+  command: virsh net-undefine jenkins_network
+  failed_when: false
+  changed_when: false
+
+- name: Définir le réseau libvirt jenkins_network
+  command: virsh net-define /tmp/jenkins_network.xml
+
+- name: Démarrer le réseau jenkins_network
+  command: virsh net-start jenkins_network
+
+- name: Activer autostart du réseau jenkins_network
+  command: virsh net-autostart jenkins_network
+
+
+
+
+- name: Ajouter les utilisateurs /{{ ssh_user }} et jenkins aux groupes nécessaires
+  user:
+    name: "{{ item }}"
+    groups: libvirt,libvirt-qemu,kvm
+    append: true
+  loop:
+    - "{{ ssh_user }}"
+    - jenkins
+
+- name: Ajouter export LIBVIRT_DEFAULT_URI dans ~/.bashrc
+  lineinfile:
+    path: "/home/{{ item }}/.bashrc"
+    line: 'export LIBVIRT_DEFAULT_URI=qemu:///system'
+    create: yes
+  loop:
+    - "{{ ssh_user }}"
+    - jenkins

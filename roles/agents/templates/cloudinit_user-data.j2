@@ -1,0 +1,60 @@
+#cloud-config
+preserve_hostname: false
+hostname: "{{ agent_name }}"
+
+users:
+  - name: {{ user_name }}
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh-authorized-keys:
+      - {{ ssh_key }}
+    lock_passwd: false
+    passwd: {{ password_hash }}
+
+locale: fr_FR.UTF-8
+keyboard:
+  layout: fr
+  variant: oss
+
+packages:
+  - isc-dhcp-client
+  - netplan.io
+  - iproute2
+  - cloud-init
+  - openjdk-21-jre-headless
+  - openjdk-21-jdk-headless
+  - fontconfig
+  - net-tools
+  - sudo
+
+runcmd:
+  - sudo locale-gen fr_FR.UTF-8
+  - sudo localectl set-keymap fr
+
+  - sudo apt update -y
+  - sudo apt --fix-broken install -y
+  - sudo apt install -y cloud-init fontconfig openjdk-21-jre-headless openjdk-21-jdk-headless net-tools sudo isc-dhcp-client netplan.io iproute2
+
+  - echo "ttyS0" | sudo tee -a /etc/securetty
+  - sudo systemctl enable serial-getty@ttyS0.service
+
+  - sudo systemctl enable ssh
+  - sudo systemctl start ssh
+
+  # Nettoyer identifiants machine/DHCP
+  - sudo systemctl stop systemd-networkd.service || true
+  - sudo rm -f /etc/instance-id
+  - sudo rm -f /var/lib/dhcp/dhclient.*
+  - sudo rm -f /var/lib/dbus/instance-id
+  - sudo touch /etc/instance-id
+  - sudo cloud-init clean --logs
+  - sudo rm -rf /var/lib/cloud/*
+
+  # Forcer UP interface + appliquer config + redémarrer network
+  - sudo ip link set enp0s3 up
+  - sudo netplan generate
+  - sudo netplan apply
+  - sudo systemctl restart systemd-networkd.service
+  - sleep 5
+  - sudo dhclient -v enp0s3

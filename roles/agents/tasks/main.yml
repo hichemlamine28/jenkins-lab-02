@@ -1,0 +1,147 @@
+---
+- name: Générer un nom dynamique pour la VM éphémère
+  set_fact:
+    agent_name: >-
+      agent_{{ '%04x' | format((65535 | random)) }}
+
+- name: Afficher le nom de agent
+  debug:
+    var: agent_name
+
+- name: Arrêter la VM si elle existe
+  command: virsh destroy "{{ agent_name }}"
+  failed_when: false
+  changed_when: false
+
+- name: Supprimer la VM si elle existe
+  command: virsh undefine "{{ agent_name }}"
+  failed_when: false
+  changed_when: false
+
+- name: Supprimer les disques associés
+  file:
+    path: "{{ vm_dir }}/{{ agent_name }}.qcow2"
+    state: absent
+
+- name: Supprimer les fichiers cloud-init ISO
+  file:
+    path: "{{ vm_dir }}/{{ agent_name }}-cidata.iso"
+    state: absent
+
+- name: Supprimer les fichiers cloud-init user-data/meta-data
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ vm_dir }}/{{ agent_name }}-user-data"
+    - "{{ vm_dir }}/{{ agent_name }}-meta-data"
+    - "{{ vm_dir }}/{{ agent_name }}.xml"
+
+- name: Créer le dossier de VM s'il n'existe pas
+  file:
+    path: "{{ vm_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Vérifier si le réseau libvirt "default" existe
+  command: virsh net-info default
+  register: result
+  failed_when: result.rc != 0
+  ignore_errors: true
+
+- name: Créer et démarrer le réseau "default" s’il est absent
+  when: result.rc != 0
+  block:
+    - name: Définir le réseau default
+      command: virsh net-define /usr/share/libvirt/networks/default.xml
+
+    - name: Démarrer le réseau default
+      command: virsh net-start default
+
+    - name: Activer le démarrage auto
+      command: virsh net-autostart default
+
+- name: Télécharger l’image cloud Ubuntu si absente
+  get_url:
+    url: "{{ vm_image_url }}"
+    dest: "{{ vm_image_path }}"
+    mode: '0644'
+  when: not lookup('file', vm_image_path, errors='ignore')
+
+- name: Récupérer la clé publique de Jenkins depuis le master
+  fetch:
+    src: /var/lib/jenkins/.ssh/id_rsa.pub
+    dest: /tmp/jenkins_id_rsa.pub
+    flat: true
+  delegate_to: "{{ groups['master'][0] }}"
+  become: true
+  become_user: root
+
+- name: Lire la clé publique de Jenkins depuis fichier local
+  slurp:
+    src: /tmp/jenkins_id_rsa.pub
+  register: jenkins_ssh_key
+
+- name: Stocker la clé Jenkins dans une variable
+  set_fact:
+    ssh_public_key: "{{ jenkins_ssh_key['content'] | b64decode }}"
+
+- name: Générer user-data cloud-init
+  template:
+    src: cloudinit_user-data.j2
+    dest: "{{ vm_dir }}/{{ agent_name }}-user-data"
+  vars:
+    user_name: "{{ vm_user }}"
+    ssh_key: "{{ ssh_public_key }}"
+    password_hash: "{{ vm_password | password_hash('sha512') }}"
+
+- name: Générer meta-data
+  copy:
+    dest: "{{ vm_dir }}/{{ agent_name }}-meta-data"
+    content: |
+      instance-id: {{ agent_name }}
+      local-hostname: {{ agent_name }}
+
+- name: Créer ISO cloud-init
+  command: >
+    cloud-localds {{ vm_dir }}/{{ agent_name }}-cidata.iso
+    {{ vm_dir }}/{{ agent_name }}-user-data
+    {{ vm_dir }}/{{ agent_name }}-meta-data
+
+- name: Créer disque qcow2 différentiel
+  command: >
+    qemu-img create -f qcow2 -F qcow2 -b {{ vm_image_path }}
+    {{ vm_dir }}/{{ agent_name }}.qcow2 {{ vm_disk_size }}
+
+- name: Générer XML libvirt
+  template:
+    src: vm_template.xml.j2
+    dest: "{{ vm_dir }}/{{ agent_name }}.xml"
+
+- name: Définir la VM
+  command: virsh define "{{ vm_dir }}/{{ agent_name }}.xml"
+
+- name: Démarrer la VM
+  command: virsh start "{{ agent_name }}"
+
+- name: Attendre que la VM boot (30s)
+  pause:
+    seconds: 30
+
+- name: Obtenir l'adresse IP de la VM agent
+  command: >
+    bash -c "virsh domifaddr {{ agent_name }} | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n1"
+  register: agent_ip
+  changed_when: false
+
+- name: Afficher l'IP de la VM agent
+  debug:
+    msg: "La VM {{ agent_name }} a l'IP : {{ agent_ip.stdout }}"
+
+- name: Sauvegarder nom et IP de la VM agent localement
+  copy:
+    dest: "/tmp/agent-info-{{ agent_name }}.txt"
+    content: |
+      name={{ agent_name }}
+      ip={{ agent_ip.stdout }}
+  
