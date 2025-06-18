@@ -73,7 +73,8 @@
     src: /var/lib/jenkins/.ssh/id_rsa.pub
     dest: /tmp/jenkins_id_rsa.pub
     flat: true
-  delegate_to: "{{ groups['master'][0] }}"
+  # delegate_to: "{{ groups['master'][0] }}" # if out of vm jenkin smaster
+  delegate_to: localhost # if inside the vm jenkins master
   become: true
   become_user: root
 
