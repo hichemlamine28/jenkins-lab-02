@@ -35,14 +35,38 @@
         state: present
         update_cache: yes
 
-    - name: Clone Jenkins lab repository
+    # - name: Clone Jenkins lab repository
+    #   git:
+    #     repo: https://github.com/hichemlamine28/jenkins-lab-02.git
+    #     dest: /home/{{ ssh_user }}/jenkins-lab-02
+    #     version: main
+    #     force: yes
+    #     update: yes
+    #   become_user: "hichem"
+
+    - name: Mark /home/hichem/jenkins-lab-02 as safe directory for Git
+      command: git config --global --add safe.directory /home/{{ ssh_user }}/jenkins-lab-02
+      become: true
+      environment:
+        HOME: /root
+
+    - name: Clone Jenkins lab repository as root
       git:
         repo: https://github.com/hichemlamine28/jenkins-lab-02.git
         dest: /home/{{ ssh_user }}/jenkins-lab-02
         version: main
         force: yes
         update: yes
-      become_user: "{{ ssh_user }}"
+      become: true
+
+    - name: Change ownership to jenkins:jenkins
+      file:
+        path: /home/{{ ssh_user }}/jenkins-lab-02
+        owner: jenkins
+        group: jenkins
+        recurse: yes
+      become: true
+
 
 
 # Lancement de jenkins sur le navigateur chrome ou firefox

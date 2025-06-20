@@ -137,6 +137,7 @@
     - { src: 5_add_jenkins_credential.groovy.j2, dest: 5_add_jenkins_credential.groovy }
     # - { src: 6_add_jenkins_agents.groovy.j2, dest: 6_add_jenkins_agents.groovy }
     - { src: 7_ssh_pub_key.groovy.j2, dest: 7_ssh_pub_key.groovy }    
+    - { src: 8_agent_listener.groovy.j2, dest: 8_agent_listener.groovy } 
     - { src: check_script_execution.groovy.j2, dest: check_script_execution.groovy }
   register: template_results
   vars:
@@ -217,29 +218,16 @@
     backup: yes
 
 
+# - name: Add {{ ssh_user }} and jenkins to required groups for KVM/libvirt
+#   user:
+#     name: "{{ item.user }}"
+#     groups: "{{ item.groups }}"
+#     append: yes
+#   loop:
+#     - { user: "{{ ssh_user }}", groups: "libvirt,kvm,sudo" }
+#     - { user: "jenkins", groups: "libvirt,kvm,sudo" }
+#   become: true
 
-
-# - name: Ajouter l'alias Jenkins dans .bashrc
-#   ansible.builtin.lineinfile:
-#     path: "/home/{{ ssh_user }}/.bashrc"
-#     line: "alias jenkins-cli='java -jar ~/jenkins-cli.jar -s http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }} -auth {{ jenkins_admin_user }}:{{ jenkins_admin_password }}'"
-#     create: yes
-#     state: present
-#     insertafter: EOF
-#     owner: "{{ ssh_user }}"
-#     group: "{{ ssh_user }}"
-#     mode: '0644'    
-
-# - name: Ajouter l'alias Jenkins dans .bashrc
-#   ansible.builtin.lineinfile:
-#     path: "/home/{{ ssh_user }}/.bashrc"
-#     line: "alias jenkins='java -jar ~/jenkins-cli.jar -s http://{{ hostvars[inventory_hostname].ansible_host }}:{{ jenkins_port }} -auth {{ jenkins_admin_user }}:{{ jenkins_admin_password }}'"
-#     create: yes
-#     state: present
-#     insertafter: EOF
-#     owner: "{{ ssh_user }}"
-#     group: "{{ ssh_user }}"
-#     mode: '0644'
 
 - name: S'assurer que .bashrc est bien sourcé dans .bash_profile
   ansible.builtin.lineinfile:

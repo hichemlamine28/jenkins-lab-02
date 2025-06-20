@@ -16,22 +16,25 @@ ansible-playbook lab_agent_remove.yml \
 
 
 
+
+
+
 # #!/bin/bash
+# set -e
 
-# echo 'ton_mot_de_passe_vault' > ~/.vault_pass.txt
-# chmod 600 ~/.vault_pass.txt  # pour la sécurité
-# ansible-playbook lab_agent_remove.yml --vault-password-file ~/.vault_pass.txt
+# VAULT_PASS_FILE="$HOME/.vault_pass.txt"
+# echo 'password' > "$VAULT_PASS_FILE"
+# chmod 600 "$VAULT_PASS_FILE"
 
-
-# # Vérifier que le nom de l'agent est bien passé en argument
 # if [ -z "$1" ]; then
 #   echo "❌ Utilisation : $0 <agent_name>"
 #   exit 1
 # fi
 
 # AGENT_NAME="$1"
+# echo "🔍 Suppression de l’agent : $AGENT_NAME"
 
-# # Exécuter le playbook avec le paramètre
-# ansible-playbook lab_agent_remove.yml \
+# ansible-playbook /home/hichem/jenkins-lab-02/lab_agent_remove.yml \
 #   --vault-password-file "$VAULT_PASS_FILE" \
-#   -e agent_name="$AGENT_NAME"
+#   -e agent_name="$AGENT_NAME" >> /tmp/agent_remove.log 2>&1
+

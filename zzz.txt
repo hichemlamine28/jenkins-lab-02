@@ -1,0 +1,363 @@
+###  script 1 :  mettre dans init.groovy  pour automatiser
+
+
+
+Code correct OK OK    Suppression immediate des agents à la fin du job
+
+####################################
+
+
+
+
+import hudson.model.*
+import hudson.model.listeners.*
+import hudson.plugins.sshslaves.SSHLauncher
+import hudson.plugins.sshslaves.verifiers.NonVerifyingKeyVerificationStrategy
+import hudson.slaves.DumbSlave
+import hudson.slaves.RetentionStrategy
+import jenkins.model.Jenkins
+
+class DynamicAgentProvisionListener extends RunListener<Run<?, ?>> {
+
+    DynamicAgentProvisionListener() {
+        super(Run.class)
+    }
+
+    @Override
+    void onStarted(Run run, TaskListener listener) {
+        listener.getLogger().println("[DynamicAgentProvisionListener] Job démarré : ${run.getFullDisplayName()}")
+
+        // 1) Lancer la création de l'agent - adapte ici ta commande shell !
+        try {
+            listener.getLogger().println("[DynamicAgentProvisionListener] Lancement création agent...")
+            def proc = "bash /home/hichem/jenkins-lab-02/lab_agent_create.sh".execute()
+            proc.waitFor()
+            def output = proc.in.text.trim()
+            def error = proc.err.text.trim()
+            listener.getLogger().println("[DynamicAgentProvisionListener] Sortie script : ${output}")
+            if(error) listener.getLogger().println("[DynamicAgentProvisionListener] Erreurs script : ${error}")
+        } catch (Exception e) {
+            listener.getLogger().println("[DynamicAgentProvisionListener] Erreur création agent : ${e}")
+            return
+        }
+
+        // 2) Attente du fichier agent-info (max 30s)
+        File agentInfoFile = waitForAgentInfoFile(listener, 30000)
+        if(agentInfoFile == null){
+            listener.getLogger().println("[DynamicAgentProvisionListener] Fichier agent-info introuvable après attente")
+            return
+        }
+        listener.getLogger().println("[DynamicAgentProvisionListener] Fichier trouvé : ${agentInfoFile.absolutePath}")
+
+        // 3) Lecture du fichier
+        def agentInfo = parseAgentInfoFile(agentInfoFile)
+        def name = agentInfo['name']
+        def ip = agentInfo['ip']
+
+        if(!name || !ip){
+            listener.getLogger().println("[DynamicAgentProvisionListener] Impossible de lire name ou ip dans le fichier")
+            return
+        }
+        listener.getLogger().println("[DynamicAgentProvisionListener] Agent détecté : name=${name}, ip=${ip}")
+
+        // 4) Ajouter / mettre à jour node Jenkins
+        addOrUpdateNode(name, ip, listener)
+    }
+
+    File waitForAgentInfoFile(TaskListener listener, long timeoutMs){
+        def agentInfoDir = new File("/tmp")
+        def waited = 0L
+        def interval = 2000L
+        while(waited < timeoutMs){
+            def files = agentInfoDir.listFiles()?.findAll{ it.name.startsWith("agent-info-") && it.name.endsWith(".txt") }
+            if(files && files.size() > 0){
+                files.sort{ -it.lastModified() }
+                return files[0]
+            }
+            Thread.sleep(interval)
+            waited += interval
+            listener.getLogger().println("[DynamicAgentProvisionListener] Attente fichier agent-info... ${waited/1000}s")
+        }
+        return null
+    }
+
+    Map parseAgentInfoFile(File file){
+        def map = [:]
+        file.readLines().each{ line ->
+            def parts = line.split("=")
+            if(parts.length == 2){
+                map[parts[0].trim()] = parts[1].trim()
+            }
+        }
+        return map
+    }
+
+    void addOrUpdateNode(String name, String ip, TaskListener listener){
+        String user = "hichem"            // <-- ADAPTE ICI !
+        String credentialId = "jenkins-master-ssh"      // <-- ADAPTE ICI !
+        int port = 22
+        String remoteFS = "/home/${user}/jenkins"
+        int numExecutors = 1
+
+        def launcher = new SSHLauncher(
+            ip,
+            port,
+            credentialId,
+            "", "", "", "", 0, 0, 0,
+            new NonVerifyingKeyVerificationStrategy()
+        )
+
+        def node = new DumbSlave(
+            name,
+            "agent node auto-provisionné",
+            remoteFS,
+            "${numExecutors}",
+            Node.Mode.NORMAL,
+            "agent",
+            launcher,
+            new RetentionStrategy.Always(),
+            []
+        )
+
+        def jenkins = Jenkins.instance
+        def existingNode = jenkins.getNode(name)
+        if(existingNode != null){
+            jenkins.removeNode(existingNode)
+            listener.getLogger().println("[DynamicAgentProvisionListener] Node existant supprimé : ${name}")
+        }
+
+        jenkins.addNode(node)
+        jenkins.save()
+        listener.getLogger().println("[DynamicAgentProvisionListener] Node Jenkins créé : ${name} (${ip})")
+    }
+}
+
+// Eviter d'ajouter plusieurs fois le même listener
+def existingListener = RunListener.all().find { it instanceof DynamicAgentProvisionListener }
+if (existingListener == null) {
+    RunListener.all().add(new DynamicAgentProvisionListener())
+    println("✅ DynamicAgentProvisionListener chargé")
+} else {
+    println("ℹ️ DynamicAgentProvisionListener déjà chargé, pas de double ajout")
+}
+
+
+
+#################################################
+#################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###  script 2 :  mettre dans init.groovy  pour automatiser
+
+
+
+Code correct OK OK    Suppression  différer apres  un delai variable "delaySec" des agents à la fin du job
+
+####################################
+
+
+
+
+
+import hudson.model.*
+import hudson.model.listeners.*
+import hudson.plugins.sshslaves.SSHLauncher
+import hudson.plugins.sshslaves.verifiers.NonVerifyingKeyVerificationStrategy
+import hudson.slaves.DumbSlave
+import hudson.slaves.RetentionStrategy
+import jenkins.model.Jenkins
+
+class DynamicAgentProvisionListener extends RunListener<Run<?, ?>> {
+
+    DynamicAgentProvisionListener() {
+        super(Run.class)
+    }
+
+    @Override
+    void onStarted(Run run, TaskListener listener) {
+        listener.getLogger().println("[DynamicAgentProvisionListener] Job démarré : ${run.getFullDisplayName()}")
+
+        try {
+            listener.getLogger().println("[DynamicAgentProvisionListener] Lancement création agent...")
+            def proc = "bash /home/hichem/jenkins-lab-02/lab_agent_create.sh".execute()
+            proc.waitFor()
+            def output = proc.in.text.trim()
+            def error = proc.err.text.trim()
+            listener.getLogger().println("[DynamicAgentProvisionListener] Sortie script : ${output}")
+            if (error) listener.getLogger().println("[DynamicAgentProvisionListener] Erreurs script : ${error}")
+        } catch (Exception e) {
+            listener.getLogger().println("[DynamicAgentProvisionListener] Erreur création agent : ${e}")
+            return
+        }
+
+        File agentInfoFile = waitForAgentInfoFile(listener, 30000)
+        if (agentInfoFile == null) {
+            listener.getLogger().println("[DynamicAgentProvisionListener] Fichier agent-info introuvable après attente")
+            return
+        }
+
+        listener.getLogger().println("[DynamicAgentProvisionListener] Fichier trouvé : ${agentInfoFile.absolutePath}")
+        def agentInfo = parseAgentInfoFile(agentInfoFile)
+        def name = agentInfo['name']
+        def ip = agentInfo['ip']
+
+        if (!name || !ip) {
+            listener.getLogger().println("[DynamicAgentProvisionListener] Impossible de lire name ou ip dans le fichier")
+            return
+        }
+
+        listener.getLogger().println("[DynamicAgentProvisionListener] Agent détecté : name=${name}, ip=${ip}")
+        addOrUpdateNode(name, ip, listener)
+    }
+
+    @Override
+    void onCompleted(Run run, TaskListener listener) {
+        listener.getLogger().println("[DynamicAgentProvisionListener] Job terminé : ${run.getFullDisplayName()}")
+
+        File agentInfoFile = waitForAgentInfoFile(listener, 5000)
+        if (agentInfoFile == null) {
+            listener.getLogger().println("[DynamicAgentProvisionListener] Fichier agent-info introuvable pour suppression")
+            return
+        }
+
+        def agentInfo = parseAgentInfoFile(agentInfoFile)
+        def name = agentInfo['name']
+
+        if (!name) {
+            listener.getLogger().println("[DynamicAgentProvisionListener] Impossible de lire le nom de l'agent pour suppression")
+            return
+        }
+
+        int delaySec = 120
+        listener.getLogger().println("[DynamicAgentProvisionListener] Suppression de l'agent différée de ${delaySec} secondes : ${name}")
+
+        def jenkins = Jenkins.getInstanceOrNull()
+        def logMsg = listener.getLogger()
+
+        Thread.start {
+            try {
+                Thread.sleep(delaySec * 1000L)
+
+                if (jenkins != null) {
+                    def node = jenkins.getNode(name)
+                    if (node != null) {
+                        // Exécuter le script de destruction AVANT la suppression du nœud
+                        String cmd = "bash /home/hichem/jenkins-lab-02/lab_agent_remove.sh ${name}"
+                        def proc = cmd.execute()
+                        proc.waitFor()
+                        def out = proc.in.text.trim()
+                        def err = proc.err.text.trim()
+                        logMsg.println("[DynamicAgentProvisionListener] Sortie script destruction : ${out}")
+                        if (err) logMsg.println("[DynamicAgentProvisionListener] Erreur script destruction : ${err}")
+
+                        jenkins.removeNode(node)
+                        jenkins.save()
+                        logMsg.println("[DynamicAgentProvisionListener] Agent supprimé de Jenkins : ${name}")
+                    } else {
+                        logMsg.println("[DynamicAgentProvisionListener] Agent introuvable dans Jenkins pour suppression : ${name}")
+                    }
+                } else {
+                    logMsg.println("[DynamicAgentProvisionListener] Jenkins.instance est null dans thread de suppression")
+                }
+
+            } catch (Exception e) {
+                logMsg.println("[DynamicAgentProvisionListener] Erreur pendant la suppression différée de l'agent : ${e}")
+            }
+        }
+    }
+
+    File waitForAgentInfoFile(TaskListener listener, long timeoutMs) {
+        def agentInfoDir = new File("/tmp")
+        def waited = 0L
+        def interval = 2000L
+        while (waited < timeoutMs) {
+            def files = agentInfoDir.listFiles()?.findAll {
+                it.name.startsWith("agent-info-") && it.name.endsWith(".txt")
+            }
+            if (files && !files.isEmpty()) {
+                files.sort { -it.lastModified() }
+                return files[0]
+            }
+            Thread.sleep(interval)
+            waited += interval
+            listener.getLogger().println("[DynamicAgentProvisionListener] Attente fichier agent-info... ${waited / 1000}s")
+        }
+        return null
+    }
+
+    Map parseAgentInfoFile(File file) {
+        def map = [:]
+        file.readLines().each { line ->
+            def parts = line.split("=")
+            if (parts.length == 2) {
+                map[parts[0].trim()] = parts[1].trim()
+            }
+        }
+        return map
+    }
+
+    void addOrUpdateNode(String name, String ip, TaskListener listener) {
+        String user = "hichem"
+        String credentialId = "jenkins-master-ssh"
+        int port = 22
+        String remoteFS = "/home/${user}/jenkins"
+        int numExecutors = 1
+
+        def launcher = new SSHLauncher(
+            ip,
+            port,
+            credentialId,
+            "", "", "", "", 0, 0, 0,
+            new NonVerifyingKeyVerificationStrategy()
+        )
+
+        def node = new DumbSlave(
+            name,
+            "agent node auto-provisionné",
+            remoteFS,
+            "${numExecutors}",
+            Node.Mode.NORMAL,
+            "agent",
+            launcher,
+            new RetentionStrategy.Always(),
+            []
+        )
+
+        def jenkins = Jenkins.instance
+        def existingNode = jenkins.getNode(name)
+        if (existingNode != null) {
+            jenkins.removeNode(existingNode)
+            listener.getLogger().println("[DynamicAgentProvisionListener] Ancien node supprimé : ${name}")
+        }
+
+        jenkins.addNode(node)
+        jenkins.save()
+        listener.getLogger().println("[DynamicAgentProvisionListener] Nouveau node Jenkins ajouté : ${name} (${ip})")
+    }
+}
+
+// Éviter les doublons
+def existingListener = RunListener.all().find { it instanceof DynamicAgentProvisionListener }
+if (existingListener == null) {
+    RunListener.all().add(new DynamicAgentProvisionListener())
+    println("✅ DynamicAgentProvisionListener chargé")
+} else {
+    println("ℹ️ DynamicAgentProvisionListener déjà chargé")
+}

@@ -5,12 +5,12 @@
     vm_name: "{{ agent_name }}"
   tasks:
     - name: Arrêter la VM si elle existe
-      command: "virsh destroy {{ agent_name }}"
+      command: "virsh --connect qemu:///system destroy {{ agent_name }}"
       failed_when: false
       changed_when: false
 
     - name: Supprimer la VM si elle existe
-      command: "virsh undefine {{ agent_name }} --remove-all-storage"
+      command: "virsh --connect qemu:///system undefine {{ agent_name }} --remove-all-storage"
       failed_when: false
       changed_when: false
 

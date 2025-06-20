@@ -106,31 +106,31 @@
     enabled: true
 
 
-# Créer le réseau jenkins_network pour les vm et agents plus tard
-- name: Copier fichier XML du réseau jenkins_network
-  copy:
-    src: jenkins_network.xml
-    dest: /tmp/jenkins_network.xml
-    mode: '0644'
+# # Créer le réseau jenkins_network pour les vm et agents plus tard
+# - name: Copier fichier XML du réseau jenkins_network
+#   copy:
+#     src: jenkins_network.xml
+#     dest: /tmp/jenkins_network.xml
+#     mode: '0644'
 
-- name: Arrêter réseau jenkins_network si déjà défini / Destroy
-  command: virsh net-destroy jenkins_network
-  failed_when: false
-  changed_when: false
+# - name: Arrêter réseau jenkins_network si déjà défini / Destroy
+#   command: virsh net-destroy jenkins_network
+#   failed_when: false
+#   changed_when: false
 
-- name: Supprimer réseau jenkins_network défini / undefine
-  command: virsh net-undefine jenkins_network
-  failed_when: false
-  changed_when: false
+# - name: Supprimer réseau jenkins_network défini / undefine
+#   command: virsh net-undefine jenkins_network
+#   failed_when: false
+#   changed_when: false
 
-- name: Définir le réseau libvirt jenkins_network
-  command: virsh net-define /tmp/jenkins_network.xml
+# - name: Définir le réseau libvirt jenkins_network
+#   command: virsh net-define /tmp/jenkins_network.xml
 
-- name: Démarrer le réseau jenkins_network
-  command: virsh net-start jenkins_network
+# - name: Démarrer le réseau jenkins_network
+#   command: virsh net-start jenkins_network
 
-- name: Activer autostart du réseau jenkins_network
-  command: virsh net-autostart jenkins_network
+# - name: Activer autostart du réseau jenkins_network
+#   command: virsh net-autostart jenkins_network
 
 
 

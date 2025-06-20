@@ -15,6 +15,7 @@ vm_dir: "{{ lookup('env','HOME') }}/vms"
 vm_image_url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
 vm_image_path: "{{ lookup('env','HOME') }}/vms/ubuntu-noble-base.qcow2"
 ssh_public_key_path: "/var/lib/jenkins/.ssh/id_rsa.pub"
+delaySec: 120
 
 # plugins jenkins à installer
 jenkins_plugins:
