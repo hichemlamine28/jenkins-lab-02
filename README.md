@@ -187,16 +187,17 @@ Pas de gestion de nested virt	                  ✅ Nested virt activée automat
 ```
 
 📄 Licence
+Ce projet est sous licence MIT. Voir le fichier LICENSE.📄 Licence
 Ce projet est sous licence MIT. Voir le fichier LICENSE.
+
 
 🤝 Contributions
 
 Les contributions sont bienvenues !  
-
 Forkez, améliorez, proposez vos idées ou PRs 🙏
+
 
 👤 Auteur
 Hichem Elamine
 💼 DevSecOps | Cloud | Automation
 🌍 LinkedIn | GitHub
-
