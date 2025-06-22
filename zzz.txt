@@ -361,3 +361,183 @@ if (existingListener == null) {
 } else {
     println("ℹ️ DynamicAgentProvisionListener déjà chargé")
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## ############################# Pipeline test ########
+
+pipeline {
+    agent any
+    stages {
+        stage('Stage 1') {
+            steps {
+                sh '''
+                groups
+                '''
+            }
+        }
+        stage('Stage 2') {
+            steps {
+                sh '''
+                whoami
+                '''
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+## ##########################  Pipeline go #######################
+
+pipeline {
+    agent {
+        label {
+            label 'master'
+            customWorkspace "${JENKINS_HOME}/${BUILD_NUMBER}/"
+        }
+    }
+    environment {
+        Go111MODULE='on'
+    }
+    stages {
+        stage('Test') {
+            steps {
+                git 'https://github.com/kodekloudhub/go-webapp-sample.git'
+                sh 'go test ./...'
+            }
+        }
+    }
+}
+
+
+## ###############################################################
+
+pipeline {
+    agent {
+        label {
+            label 'master'
+            customWorkspace "${JENKINS_HOME}/${BUILD_NUMBER}/"
+        }
+    }
+    environment {
+        Go111MODULE='on'
+    }
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git 'https://github.com/kodekloudhub/go-webapp-sample.git'
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t adminturneddevops/go-webapp-sample .'
+            }
+        }
+    }
+
+
+}
+
+## #################################  
+
+
+pipeline {
+    agent {
+        label {
+            label 'master'
+            customWorkspace "${JENKINS_HOME}/${BUILD_NUMBER}/"
+        }
+    }
+    environment {
+        Go111MODULE='on'
+    }
+    stages {
+        stage('Test') {
+            steps {
+                git 'https://github.com/kodekloudhub/go-webapp-sample.git'
+            }
+        }
+        stage('build') {
+            steps {
+                script{
+                    image = docker.build("adminturneddevops/go-webapp-sample")
+                }
+            }
+        }
+    }
+}
+
+## ######################################################################
+
+
+pipeline {
+    agent {
+        label {
+            label 'master'
+            customWorkspace "${JENKINS_HOME}/${BUILD_NUMBER}/"
+        }
+    }
+    environment {
+        Go111MODULE='on'
+    }
+    stages {
+        stage('Test') {
+            steps {
+                git 'https://github.com/kodekloudhub/go-webapp-sample.git'
+            }
+        }
+        stage('build') {
+            steps {
+                script{
+                    image = docker.build("adminturneddevops/go-webapp-sample")
+                    sh "docker run -p 8090:8000 -d adminturneddevops/go-webapp-sample"
+                }
+            }
+        }
+    }
+}
+
+## ############################################
+
+
+

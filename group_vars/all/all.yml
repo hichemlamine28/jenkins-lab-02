@@ -69,6 +69,9 @@ jenkins_plugins:
   - show-build-parameters            # Show Build Parameters
   # - pipeline-as-yaml                 # 🆕 Pipelines Jenkins en YAML
   - validating-yaml-parameter        # validating Yaml Parameter
+  # - workflow-basic-steps             # A tester
+
+  - thinBackup
 
   ## 🖼️ UI & Visualisation
   - blueocean                        # Interface moderne de Jenkins
