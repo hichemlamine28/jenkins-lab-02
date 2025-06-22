@@ -48,24 +48,37 @@ Ce dépôt propose un **laboratoire Jenkins complet et automatisé avec Ansible*
 
 ## 🗂️ Structure du projet
 
-```bash
+```text
 jenkins-lab/
 ├── ansible.cfg
 ├── inventory.ini                  # inventaire statique temporaire
 ├── inventory_dynamic.py          # génération d’inventaire dynamique
 ├── lab_jenkins.yml               # playbook principal (installation & config)
 ├── lab_jenkins.sh                # exécution automatisée
+├── lab_agent_create.sh           # création d’agent éphémère
+├── lab_agent_remove.sh           # suppression d’agent
 ├── lab_agent_create.yml          # création d’agent éphémère
 ├── lab_agent_remove.yml          # suppression d’agent
 ├── lab_agent_template_create.yml # création d’un template libvirt
 ├── lab_agent_template_remove.yml # suppression du template
 ├── group_vars/
 │   └── all/
-│       └── main.yml              # login, password Jenkins (vault)
+│       └── main.yml                   # login, password Jenkins (vault)
 ├── roles/
-│   ├── common/                   # installation Java, dépendances
+│   ├── common/                        # installation Java, dépendances
 │   │   └── tasks/main.yml
-│   └── jenkins/                  # installation Jenkins & configuration
+|   |
+│   └── nested_virt/                   # installation nested virt & configuration
+│   |   ├── files/jenkins_network.xml
+│   |   ├── handlers/main.yml
+│   |   ├── tasks/main.yml
+│   └── agents/                        # creation dynamique des agents epehemères & configuration
+│   |   ├── defaults/main.yml
+│   |   ├── tasks/main.yml
+│   |   └── templates/
+│   |       ├── cloudinit_user-data.j2
+│   |       ├── vm_template.xml.j2
+│   └── jenkins/                       # installation Jenkins & configuration
 │       ├── defaults/main.yml
 │       ├── handlers/main.yml
 │       ├── tasks/main.yml
@@ -76,10 +89,14 @@ jenkins-lab/
 │           ├── 4_disable_setup.groovy.j2
 │           ├── 5_add_jenkins_credential.groovy.j2
 │           ├── 6_add_jenkins_agents.groovy.j2
+│           ├── 7_ssh_pub_key.groovy.j2
+│           ├── 8_agnet_listener.groovy.j2
 │           └── check_script_execution.groovy.j2
 
+```
 
-🧪 Déploiement automatisé
+## 🧪 Déploiement automatisé
+
 🐍 Préparation de l’environnement Python
 ```bash
 python3 -m venv venv
@@ -89,7 +106,7 @@ ansible-galaxy collection install community.libvirt
 sudo apt install pkg-config libvirt-dev python3-dev -y
 ```
 
-🚀 Exécution du LAB Jenkins
+## 🚀 Exécution du LAB Jenkins
 
 📌 Étapes :
 
@@ -111,23 +128,23 @@ Ou exécution tout-en-un :
 ./lab_jenkins.sh
 ```
 
-🖥️ Création / Suppression Agents & Templates
+## 🖥️ Création / Suppression Agents & Templates
 
-🔧 Gestion des agents :
+## 🔧 Gestion des agents :
 
 ```bash
 ansible-playbook lab_agent_create.yml --ask-vault-pass
 ansible-playbook lab_agent_remove.yml --ask-vault-pass -e vm_name=agent_949f
 ```
 
-🧱 Gestion des templates :
+## 🧱 Gestion des templates :
 
 ```bash
 ansible-playbook lab_agent_template_create.yml -i inventory.ini --ask-vault-pass
 ansible-playbook lab_agent_template_remove.yml -i inventory.ini --ask-vault-pass
 ```
 
-🛠️ Jenkins CLI (depuis le master)
+## 🛠️ Jenkins CLI (depuis le master)
 
 ```bash
 wget http://localhost:{{ jenkins_port }}/jnlpJars/jenkins-cli.jar
@@ -141,7 +158,7 @@ jenkins who-am-i
 jenkins version
 ```
 
-🔑 Connexion par SSH (alternative)
+## 🔑 Connexion par SSH (alternative)
 
 ```bash
 curl -Lv http://localhost:{{ jenkins_port }}/login 2>&1 | grep -i 'x-ssh-endpoint'
@@ -149,7 +166,8 @@ curl -Lv http://localhost:{{ jenkins_port }}/login 2>&1 | grep -i 'x-ssh-endpoin
 ssh -p 2222 admin@localhost version
 ```
 
-💾 Backup Jenkins avec thinBackup
+## 💾 Backup Jenkins avec thinBackup
+
 ```bash
 sudo mkdir /var/lib/jenkins/jenkins_backup
 sudo chown -R jenkins /var/lib/jenkins/jenkins_backup
@@ -157,7 +175,8 @@ sudo chown -R jenkins /var/lib/jenkins/jenkins_backup
 
 
 
-🧩 Fonctionnalités automatisées
+## 🧩 Fonctionnalités automatisées
+
 ```text
 ✅ Détection dynamique des VMs (1 master + N agents)
 ✅ Préparation système des VMs (update, Java, libvirt...)
@@ -175,7 +194,7 @@ sudo chown -R jenkins /var/lib/jenkins/jenkins_backup
 ```
 
 
-🧠 Différences avec jenkins-lab-01
+## 🧠 Différences avec jenkins-lab-01
 
 ```text
 jenkins-lab-01                                  jenkins-lab-02 (ce projet)
@@ -186,18 +205,19 @@ Inventaire dynamique                            ✅ Inventaire dynamique
 Pas de gestion de nested virt	                  ✅ Nested virt activée automatiquement
 ```
 
-📄 Licence
-Ce projet est sous licence MIT. Voir le fichier LICENSE.📄 Licence
-Ce projet est sous licence MIT. Voir le fichier LICENSE.
+## 📄 ⚖️ Licence
+
+Ce projet est sous licence **MIT**. Voir le fichier [LICENSE](./LICENSE).
 
 
-🤝 Contributions
+
+## 🤝 Contributions
 
 Les contributions sont bienvenues !  
 Forkez, améliorez, proposez vos idées ou PRs 🙏
 
 
-👤 Auteur
-Hichem Elamine
-💼 DevSecOps | Cloud | Automation
-🌍 LinkedIn | GitHub
+## 👤 Auteur
+**Hichem Elamine**  
+💼 DevSecOps | Cloud | Automation  
+🌍 [LinkedIn](https://www.linkedin.com/in/hichemlamine/) | [GitHub](https://github.com/hichemlamine28)

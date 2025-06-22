@@ -541,3 +541,107 @@ pipeline {
 
 
 
+
+
+
+pipeline {
+    agent any
+
+    environment {
+        GIT_REPO = 'https://github.com/AdminTurnedDevOps/go-webapp-sample.git'
+        IMAGE_NAME = 'adminturneddevops/go-webapp-sample'
+        CONTAINER_NAME = 'go-webapp-container'
+        APP_PORT = '8000'
+    }
+
+    stages {
+        stage('Install Docker') {
+            steps {
+                script {
+                    echo ">>> Installing Docker (if not already installed)"
+                    sh '''
+                    if ! command -v docker > /dev/null; then
+                        sudo apt-get update
+                        sudo apt-get install -y \
+                            ca-certificates \
+                            curl \
+                            gnupg \
+                            lsb-release
+
+                        sudo mkdir -p /etc/apt/keyrings
+                        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+                        echo \
+                          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+                          $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+                        sudo apt-get update
+                        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+                    else
+                        echo "Docker already installed"
+                    fi
+                    '''
+                }
+            }
+        }
+
+        stage('Clone Repository') {
+            steps {
+                echo ">>> Cloning Git repository"
+                dir('go-webapp') {
+                    git url: "${GIT_REPO}"
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo ">>> Building Docker image"
+                dir('go-webapp') {
+                    sh "sudo docker build -t ${IMAGE_NAME} ."
+                }
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                script {
+                    echo ">>> Run container (detached)"
+                    sh "sudo docker rm -f ${CONTAINER_NAME} || true"
+                    sh "sudo docker run -d --name ${CONTAINER_NAME} -p 8080:${APP_PORT} ${IMAGE_NAME}"
+                }
+            }
+        }
+
+        stage('Wait and Show Logs') {
+            steps {
+                script {
+                    echo ">>> Waiting 20 seconds to let service start"
+                    sh "sleep 20"
+                    echo ">>> Showing Docker container logs for debug"
+                    sh "sudo docker logs ${CONTAINER_NAME}"
+                }
+            }
+        }
+
+        stage('Test Service') {
+            steps {
+                script {
+                    echo ">>> Testing service"
+                    sh "curl -f http://localhost:8080 || (echo 'Service not responding' && exit 1)"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo ">>> Cleaning up container"
+            sh "sleep 1200"
+            //sh "sudo docker rm -f ${CONTAINER_NAME} || true"
+        }
+    }
+}
+
+
+## ########################################
