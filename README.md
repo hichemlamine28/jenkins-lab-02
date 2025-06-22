@@ -158,7 +158,7 @@ sudo chown -R jenkins /var/lib/jenkins/jenkins_backup
 
 
 🧩 Fonctionnalités automatisées
-
+```text
 ✅ Détection dynamique des VMs (1 master + N agents)
 ✅ Préparation système des VMs (update, Java, libvirt...)
 ✅ Installation & configuration complète de Jenkins
@@ -172,15 +172,19 @@ sudo chown -R jenkins /var/lib/jenkins/jenkins_backup
 ✅ Inventaire dynamique avec Python
 ✅ Intégration thinBackup
 ✅ Compatible avec cloud ou infrastructure locale
+```
+
 
 🧠 Différences avec jenkins-lab-01
 
+```text
 jenkins-lab-01	                                 jenkins-lab-02 (ce projet)
 Agents statiques	                              ✅ Agents éphémères dynamiques
 Création manuelle des VMs agents	               ✅ Création/déstruction auto avec libvirt
 Jenkins full config (Groovy, plugins, SSH)      ✅ Jenkins full config (Groovy, plugins, SSH)
 Inventaire dynamique                            ✅ Inventaire dynamique
 Pas de gestion de nested virt	                  ✅ Nested virt activée automatiquement
+```
 
 📄 Licence
 Ce projet est sous licence MIT. Voir le fichier LICENSE.
