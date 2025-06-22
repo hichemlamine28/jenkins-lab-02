@@ -178,9 +178,9 @@ sudo chown -R jenkins /var/lib/jenkins/jenkins_backup
 🧠 Différences avec jenkins-lab-01
 
 ```text
-jenkins-lab-01	                                 jenkins-lab-02 (ce projet)
-Agents statiques	                              ✅ Agents éphémères dynamiques
-Création manuelle des VMs agents	               ✅ Création/déstruction auto avec libvirt
+jenkins-lab-01                                  jenkins-lab-02 (ce projet)
+Agents statiques                                ✅ Agents éphémères dynamiques
+Création manuelle des VMs agents                ✅ Création/déstruction auto avec libvirt
 Jenkins full config (Groovy, plugins, SSH)      ✅ Jenkins full config (Groovy, plugins, SSH)
 Inventaire dynamique                            ✅ Inventaire dynamique
 Pas de gestion de nested virt	                  ✅ Nested virt activée automatiquement
