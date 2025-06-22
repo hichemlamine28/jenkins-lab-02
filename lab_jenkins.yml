@@ -23,11 +23,13 @@
 
 # Cloner le depot git sur la vm jenkins master
 
+
+
 - name: Clone Jenkins lab repo on master node
   hosts: master
   become: true
-  vars:
-    ssh_user: ubuntu
+  # vars:
+  #   ssh_user: ubuntu
   tasks:
     - name: Ensure git is installed
       apt:
@@ -35,14 +37,18 @@
         state: present
         update_cache: yes
 
-    # - name: Clone Jenkins lab repository
-    #   git:
-    #     repo: https://github.com/hichemlamine28/jenkins-lab-02.git
-    #     dest: /home/{{ ssh_user }}/jenkins-lab-02
-    #     version: main
-    #     force: yes
-    #     update: yes
-    #   become_user: "hichem"
+    - name: Remove the directory and its contents if present
+      ansible.builtin.file:
+        path: /home/{{ ssh_user }}/jenkins-lab-02
+        state: absent
+
+    - name: Recreate the directory with correct permissions
+      ansible.builtin.file:
+        path: /home/{{ ssh_user }}/jenkins-lab-02
+        state: directory
+        mode: '0755'
+        owner: "{{ ssh_user }}"
+        group: "{{ ssh_user }}"
 
     - name: Mark /home/hichem/jenkins-lab-02 as safe directory for Git
       command: git config --global --add safe.directory /home/{{ ssh_user }}/jenkins-lab-02
@@ -50,14 +56,15 @@
       environment:
         HOME: /root
 
-    - name: Clone Jenkins lab repository as root
+    - name: Clone Jenkins lab repository
       git:
         repo: https://github.com/hichemlamine28/jenkins-lab-02.git
-        dest: /home/{{ ssh_user }}/jenkins-lab-02
+        dest: /home/{{ ssh_user }}//jenkins-lab-02
         version: main
         force: yes
         update: yes
       become: true
+      become_user: "{{ ssh_user }}"
 
     - name: Change ownership to jenkins:jenkins
       file:
